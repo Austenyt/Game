@@ -1,32 +1,72 @@
-import pygame
-from src.settings import *
+import random
+
+from . import player
+from .alien import Alien
+from .player import Player
+from .settings import *
 
 
 class Game:
 
     def __init__(self):
-        self.player = pygame.rect.Rect(100, 100, 50, 50)
-        self.direction = [0, 0]
+        self.player = Player(375, 500)
+        self.aliens = []
+        for x in range(40, WIDTH - 50, 40):
+            for y in range(100, HEIGHT - 300, 50):
+                alien = Alien(x, y)
+                self.aliens.append(alien)
+        self.bullets_player = []
+        self.bullets_alien = []
 
-    def run(self):
+    def run(self) -> None:
+        """
+        Запуск игрового процесса
+        """
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_KP6:
-                        self.direction[0] = 1
-                    elif event.key == pygame.K_KP4:
-                        self.direction[0] = -1
-                    elif event.key == pygame.K_KP8:
-                        self.direction[0] = 1
-                    elif event.key == pygame.K_KP2:
-                        self.direction[0] = -1
-                elif event.type == pygame.KEYUP:
-                    if event.key in [pygame.K_KP6, pygame.K_KP4]:
-                        self.direction[0] = 0
-            self.player.x += self.direction[0] * 1
-            SCREEN.fill((0, 0, 0))
-            pygame.draw.rect(SCREEN, (255, 0, 0), self.player)
-            pygame.display.flip()
+            self.update()
+            self.draw()
+
+    def update(self) -> None:
+        """
+        Обновляет свойства объектов
+        """
+        self.player.update()
+        for alien in self.aliens:
+            alien.update()
+        if self.player.can_shoot():
+            self.bullets_player.append(self.player.shoot())
+        selected_alien = random.choice(self.aliens)
+        if selected_alien.can_shoot():
+            self.bullets_alien.append(selected_alien.shoot())
+        for bullet in self.bullets_player:
+            bullet.update()
+            for alien in self.aliens:
+                if alien.colliderect(bullet):
+                    self.aliens.remove(alien)
+                    self.bullets_player.remove(bullet)
+        for bullet in self.bullets_alien:
+            bullet.update()
+            if self.player.colliderect(bullet):
+                self.bullets_alien.remove(bullet)
+                self.player.hp -= 1
+                if self.player.hp < 1:
+                    Game().run()
+                    del self
+
+    def draw(self) -> None:
+        """
+        Отрисовка
+        """
+        SCREEN.fill((0, 0, 0))
+        self.player.draw()
+        for alien in self.aliens:
+            alien.draw()
+        for bullet in self.bullets_player:
+            bullet.draw()
+        for bullet in self.bullets_alien:
+            bullet.draw()
+        pygame.display.flip()
